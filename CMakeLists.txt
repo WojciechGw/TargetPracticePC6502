@@ -48,6 +48,15 @@ add_custom_command(
     VERBATIM
 )
 
+add_custom_command(
+    OUTPUT shell.bin shell_pal.bin
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/img/png2bin.py
+        sprite 4 8x16 ${CMAKE_CURRENT_SOURCE_DIR}/img/shell.png
+        shell.bin shell_pal.bin
+    DEPENDS img/png2bin.py img/shell.png
+    VERBATIM
+)
+
 if(RP6502_BASIC)
     project(MY-RP6502-PROJECT BASIC)
     add_executable(hello)
@@ -70,6 +79,8 @@ else()
     rp6502_asset(hello XRAM(XRAM_TARGET_BOOM) ${CMAKE_CURRENT_BINARY_DIR}/target_boom.bin)
     rp6502_asset(hello XRAM(XRAM_GAME_OVER_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/game_over_pal.bin)
     rp6502_asset(hello XRAM(XRAM_GAME_OVER) ${CMAKE_CURRENT_BINARY_DIR}/game_over.bin)
+    rp6502_asset(hello XRAM(XRAM_SHELL_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/shell_pal.bin)
+    rp6502_asset(hello XRAM(XRAM_SHELL) ${CMAKE_CURRENT_BINARY_DIR}/shell.bin)
     rp6502_executable(hello DATA default RESET default)
     rp6502_web(hello)
     target_sources(hello PRIVATE

@@ -18,11 +18,18 @@ typedef struct
     int8_t target_dx;
     int8_t target_dy;
     int8_t nb_targets;
+    int8_t nb_shots;
     int8_t target_status;
+    int8_t space_key_down;
 } game_t;
+
+game_t game;
 
 #define WIDTH 320
 #define HEIGHT 240
+#define TARGET 0
+#define TARGET_BOOM 1
+#define CROSSHAIR 2
 
 static const mode3_config_t background_config = {
     false, false, 0, 0, 320, 240,
@@ -31,6 +38,12 @@ static const mode3_config_t background_config = {
 static const mode3_config_t game_over_config = {
     false, false, 96, 80, 128, 75,
     XRAM_BACKGROUND, XRAM_BACKGROUND_PALETTE};
+
+static mode5_csprite_t elts_sprite[3] = {
+    {10, 150, XRAM_TARGET, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_4BPP},
+    {10, 150, XRAM_TARGET_BOOM, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_1BPP},
+    {100, 10, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE, MODE5_SIZE(32, 32), MODE5_2BPP}
+};
 
 static mode5_csprite_t crosshair_sprite = {
     100, 10, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE,
@@ -41,12 +54,35 @@ static mode5_csprite_t target_sprite = {
     MODE5_SIZE(16, 16), MODE5_4BPP};
 
 static mode5_csprite_t target_boom_sprite = {
-    10, 150, XRAM_TARGET, XRAM_TARGET_PALETTE,
+    10, 150, XRAM_TARGET_BOOM, XRAM_TARGET_PALETTE,
     MODE5_SIZE(16, 16), MODE5_1BPP};
+
+static mode5_csprite_t shells_sprite[10] = {
+    { 8, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 16, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 24, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 32, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 40, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 48, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 56, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 64, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 72, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
+    { 80, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP }
+};
 
 uint8_t pad[4];
 
 unsigned char dirs, jump, fire;
+
+void reset_target();
+
+void init_game() {
+    game.space_key_down = 0;
+    game.target_dx = 4;
+    game.target_dy = -20;
+    game.nb_shots = 10;
+    reset_target();
+}
 
 void read_player1(void)
 {
@@ -58,48 +94,50 @@ void read_player1(void)
     fire = btn0 & 0x12;            /* B or Y */
 }
 
-game_t game;
-
 void reset_target() {
-//    target_sprite.options = MODE5_4BPP;
-    target_sprite.x_pos_px = 0;
-    target_sprite.y_pos_px = 150;
-    target_boom_sprite.x_pos_px = 0;
-    target_boom_sprite.y_pos_px = 150;
+    elts_sprite[TARGET].x_pos_px = 0;
+    elts_sprite[TARGET].y_pos_px = 150;
+    elts_sprite[TARGET_BOOM].x_pos_px = 0;
+    elts_sprite[TARGET_BOOM].y_pos_px = 250;
     game.target_dx = 4;
     game.target_dy = -30;
     game.target_status = 0;
 }
 
 void move_target() {
-//    if (game.target_status == 0) {
-        target_sprite.x_pos_px += game.target_dx;
-        target_sprite.y_pos_px += (game.target_dy >> 4);
-//    } else {
-//        target_boom_sprite.x_pos_px += game.target_dx;
-//        target_boom_sprite.y_pos_px += (game.target_dy >> 4);
-//    }
+    if (game.target_status == 0) {
+        elts_sprite[TARGET].x_pos_px += game.target_dx;
+        elts_sprite[TARGET].y_pos_px += (game.target_dy >> 4);
+    } else {
+        elts_sprite[TARGET_BOOM].x_pos_px += game.target_dx;
+        elts_sprite[TARGET_BOOM].y_pos_px += (game.target_dy >> 4);
+    }
     game.target_dy++;
 
-    if (target_sprite.x_pos_px >= 316) {
+    if (elts_sprite[TARGET].x_pos_px >= 316) {
         reset_target();
     }
 }
 
 void shoot() {
+    if (game.nb_shots == 0) {
+        return;
+    }
+    game.nb_shots--;
+    shells_sprite[game.nb_shots].y_pos_px = 250;
     // Check if the target is hit
-    if (crosshair_sprite.x_pos_px > target_sprite.x_pos_px+10) return;
-    if (crosshair_sprite.x_pos_px < target_sprite.x_pos_px-24) return;
-    if (crosshair_sprite.y_pos_px > target_sprite.y_pos_px+6) return;
-    if (crosshair_sprite.y_pos_px < target_sprite.y_pos_px-22) return;
+    if (elts_sprite[CROSSHAIR].x_pos_px > elts_sprite[TARGET].x_pos_px+10) return;
+    if (elts_sprite[CROSSHAIR].x_pos_px < elts_sprite[TARGET].x_pos_px-24) return;
+    if (elts_sprite[CROSSHAIR].y_pos_px > elts_sprite[TARGET].y_pos_px+6) return;
+    if (elts_sprite[CROSSHAIR].y_pos_px < elts_sprite[TARGET].y_pos_px-22) return;
 
     // Hit the target
     game.target_status = 32;
-//    target_boom_sprite.x_pos_px = target_sprite.x_pos_px;
-//    target_boom_sprite.y_pos_px = target_sprite.y_pos_px;
+    elts_sprite[TARGET_BOOM].x_pos_px = elts_sprite[TARGET].x_pos_px;
+    elts_sprite[TARGET_BOOM].y_pos_px = elts_sprite[TARGET].y_pos_px;
     target_sprite.options = MODE5_1BPP;
 
-    target_boom_sprite.y_pos_px = 250;
+    elts_sprite[TARGET].y_pos_px = 250;
     xram0_write(XRAM_TARGET_SPRITE, &target_boom_sprite, sizeof(target_boom_sprite));
 }
 
@@ -109,26 +147,31 @@ void handle_input() {
         xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
         if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_LEFT)) {
             if (crosshair_sprite.x_pos_px) {
-                    crosshair_sprite.x_pos_px-=2;
+                    elts_sprite[CROSSHAIR].x_pos_px-=2;
                 }
         } else if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_RIGHT)) {
             if (crosshair_sprite.x_pos_px < 288) {
-                    crosshair_sprite.x_pos_px+=2;
+                    elts_sprite[CROSSHAIR].x_pos_px+=2;
                 }
         }
 
         if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_UP)) {
             if (crosshair_sprite.y_pos_px) {
-                    crosshair_sprite.y_pos_px-=2;
+                    elts_sprite[CROSSHAIR].y_pos_px-=2;
                 }
         } else if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_DOWN)) {
             if (crosshair_sprite.y_pos_px < 224) {
-                    crosshair_sprite.y_pos_px+=2;
+                    elts_sprite[CROSSHAIR].y_pos_px+=2;
                 }
         }
 
         if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-            shoot();
+            if (!game.space_key_down) {
+                shoot();
+                game.space_key_down = 1;
+            }
+        } else {
+            game.space_key_down = 0;
         }
 }
 
@@ -142,14 +185,15 @@ int main(void)
 
     // Program the video mode
     xreg_vga_mode3(MODE3_4BPP, XRAM_BACKGROUND_CONFIG);
-    xreg_vga_mode5(MODE5_4BPP | MODE5_16X16, XRAM_TARGET_SPRITE, 1, 0, 0, 0);
-    xreg_vga_mode5(MODE5_1BPP | MODE5_16X16, XRAM_TARGET_BOOM_SPRITE, 1, 1, 0, 0);
-    xreg_vga_mode5(MODE5_2BPP | MODE5_32X32, XRAM_CROSSHAIR_SPRITE, 1, 2, 0, 0);
+//    xreg_vga_mode5(MODE5_CUSTOM, XRAM_TARGET_SPRITE, 1, 0, 0, 0);
+//    xreg_vga_mode5(MODE5_CUSTOM, XRAM_TARGET_BOOM_SPRITE, 1, 1, 0, 0);
+//    xreg_vga_mode5(MODE5_CUSTOM, XRAM_CROSSHAIR_SPRITE, 1, 1, 0, 0);
+    xreg_vga_mode5(MODE5_CUSTOM, XRAM_ELTS_SPRITE, 3, 1, 0, 0);
+    xreg_vga_mode5(MODE5_CUSTOM, XRAM_SHELL_SPRITE, 10, 2, 0, 0);
     // TODO: learn how to add a second bitmap over the first (if it's possible)
 //    xreg_vga_mode3(MODE3_4BPP, XRAM_GAME_OVER_CONFIG);
 
-    game.target_dx = 4;
-    game.target_dy = -20;
+    init_game();
     vsync = ria_vsync();
 
     xram0_write(XRAM_BACKGROUND_CONFIG, &background_config, sizeof(background_config));
@@ -164,10 +208,8 @@ int main(void)
         handle_input();
 
         // Update the sprites
-        if (game.target_status == 0) {
-            xram0_write(XRAM_TARGET_SPRITE, &target_sprite, sizeof(target_sprite));
-        } else {
-            xram0_write(XRAM_TARGET_BOOM_SPRITE, &target_sprite, sizeof(target_sprite));
+        xram0_write(XRAM_ELTS_SPRITE, &elts_sprite, sizeof(elts_sprite));
+        if (game.target_status) {
             game.target_status--;
             if (!game.target_status) {
                 reset_target();
@@ -175,5 +217,6 @@ int main(void)
         }
 
         xram0_write(XRAM_CROSSHAIR_SPRITE, &crosshair_sprite, sizeof(crosshair_sprite));
+        xram0_write(XRAM_SHELL_SPRITE, &shells_sprite, sizeof(shells_sprite));
     };
 }

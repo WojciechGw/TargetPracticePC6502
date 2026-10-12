@@ -157,6 +157,7 @@ typedef struct
     uint16_t target[16];
     uint16_t target_boom[2];
     uint16_t crosshair[4];
+    uint16_t shell[16];
 } palettes_t;
 
 _Static_assert(sizeof(palettes_t) / sizeof(uint16_t) <= 512,
@@ -189,11 +190,14 @@ typedef struct
     uint8_t target_boom[16*16/8];
     uint8_t crosshair[32*32/4];
     uint8_t game_over[128*75/2];
+    uint8_t shell[8*16/2];
     mode3_config_t background_config;
     mode3_config_t game_over_config;
     mode5_csprite_t target_sprite;
     mode5_csprite_t target_boom_sprite;
     mode5_csprite_t crosshair_sprite;
+    mode5_csprite_t shells_sprite[10];
+    mode5_csprite_t elts_sprite[3];
     keyboard_t keyboard;
     gamepad_t gamepad;
 } xram_layout_t;
@@ -201,6 +205,10 @@ typedef struct
 #define XRAM_BACKGROUND offsetof(xram_layout_t, background)
 #define XRAM_BACKGROUND_CONFIG offsetof(xram_layout_t, background_config)
 #define XRAM_BACKGROUND_PALETTE offsetof(xram_layout_t, palettes.background)
+
+#define XRAM_GAME_OVER offsetof(xram_layout_t, game_over)
+#define XRAM_GAME_OVER_PALETTE offsetof(xram_layout_t, palettes.game_over)
+#define XRAM_GAME_OVER_CONFIG offsetof(xram_layout_t, game_over_config)
 
 #define XRAM_CROSSHAIR offsetof(xram_layout_t, crosshair)
 #define XRAM_CROSSHAIR_PALETTE offsetof(xram_layout_t, palettes.crosshair)
@@ -214,9 +222,11 @@ typedef struct
 #define XRAM_TARGET_BOOM_PALETTE offsetof(xram_layout_t, palettes.target_boom)
 #define XRAM_TARGET_BOOM_SPRITE offsetof(xram_layout_t, target_boom_sprite)
 
-#define XRAM_GAME_OVER offsetof(xram_layout_t, game_over)
-#define XRAM_GAME_OVER_PALETTE offsetof(xram_layout_t, palettes.game_over)
-#define XRAM_GAME_OVER_CONFIG offsetof(xram_layout_t, game_over_config)
+#define XRAM_SHELL offsetof(xram_layout_t, shell)
+#define XRAM_SHELL_PALETTE offsetof(xram_layout_t, palettes.shell)
+#define XRAM_SHELL_SPRITE offsetof(xram_layout_t, shells_sprite)
+
+#define XRAM_ELTS_SPRITE offsetof(xram_layout_t, elts_sprite)
 
 #define XRAM_GAMEPAD offsetof(xram_layout_t, gamepad)
 #define XRAM_KEYBOARD offsetof(xram_layout_t, keyboard)
