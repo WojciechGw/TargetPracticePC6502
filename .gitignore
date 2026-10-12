@@ -1,0 +1,9 @@
+__pycache__
+/.rp6502
+/build
+/CMakeUserPresets.json
+/tools/rp6502-emu
+/tools/rp6502-emu.*
+.DS_Store
+.vscode
+
