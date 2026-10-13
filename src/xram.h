@@ -156,9 +156,13 @@ typedef struct
     uint16_t game_over[16];
     uint16_t target[16];
     uint16_t target_boom[2];
-    uint16_t crosshair[4];
+    uint16_t crosshair[2];
     uint16_t shell[16];
+    uint16_t hostage[16];
+    uint16_t bad_guy[16];
+    uint16_t digits[2];
 } palettes_t;
+
 
 _Static_assert(sizeof(palettes_t) / sizeof(uint16_t) <= 512,
                "palettes_t holds more than 512 colors.");
@@ -188,16 +192,19 @@ typedef struct
     uint8_t background[320UL * 240 / 2];
     uint8_t target[16*16/2];
     uint8_t target_boom[16*16/8];
-    uint8_t crosshair[32*32/4];
-    uint8_t game_over[128*75/2];
+    uint8_t crosshair[32*32/8];
+    uint8_t game_over1[56*64/2];
+    uint8_t game_over2[56*64/2];
     uint8_t shell[8*16/2];
+    uint8_t hostage[48*32/2];
+    uint8_t bad_guy[128*32/2];
+    uint8_t digits[88*8/8];
     mode3_config_t background_config;
-    mode3_config_t game_over_config;
-    mode5_csprite_t target_sprite;
-    mode5_csprite_t target_boom_sprite;
-    mode5_csprite_t crosshair_sprite;
-    mode5_csprite_t shells_sprite[10];
-    mode5_csprite_t elts_sprite[3];
+//    mode5_csprite_t target_sprite;
+//    mode5_csprite_t target_boom_sprite;
+//    mode5_csprite_t crosshair_sprite;
+    mode5_csprite_t hud_sprite[27];
+    mode5_csprite_t elts_sprite[5];
     keyboard_t keyboard;
     gamepad_t gamepad;
 } xram_layout_t;
@@ -206,26 +213,35 @@ typedef struct
 #define XRAM_BACKGROUND_CONFIG offsetof(xram_layout_t, background_config)
 #define XRAM_BACKGROUND_PALETTE offsetof(xram_layout_t, palettes.background)
 
-#define XRAM_GAME_OVER offsetof(xram_layout_t, game_over)
-#define XRAM_GAME_OVER_PALETTE offsetof(xram_layout_t, palettes.game_over)
-#define XRAM_GAME_OVER_CONFIG offsetof(xram_layout_t, game_over_config)
-
 #define XRAM_CROSSHAIR offsetof(xram_layout_t, crosshair)
 #define XRAM_CROSSHAIR_PALETTE offsetof(xram_layout_t, palettes.crosshair)
-#define XRAM_CROSSHAIR_SPRITE offsetof(xram_layout_t, crosshair_sprite)
+//#define XRAM_CROSSHAIR_SPRITE offsetof(xram_layout_t, crosshair_sprite)
 
 #define XRAM_TARGET offsetof(xram_layout_t, target)
 #define XRAM_TARGET_PALETTE offsetof(xram_layout_t, palettes.target)
-#define XRAM_TARGET_SPRITE offsetof(xram_layout_t, target_sprite)
+//#define XRAM_TARGET_SPRITE offsetof(xram_layout_t, target_sprite)
 
 #define XRAM_TARGET_BOOM offsetof(xram_layout_t, target_boom)
 #define XRAM_TARGET_BOOM_PALETTE offsetof(xram_layout_t, palettes.target_boom)
-#define XRAM_TARGET_BOOM_SPRITE offsetof(xram_layout_t, target_boom_sprite)
+//#define XRAM_TARGET_BOOM_SPRITE offsetof(xram_layout_t, target_boom_sprite)
 
 #define XRAM_SHELL offsetof(xram_layout_t, shell)
 #define XRAM_SHELL_PALETTE offsetof(xram_layout_t, palettes.shell)
-#define XRAM_SHELL_SPRITE offsetof(xram_layout_t, shells_sprite)
 
+#define XRAM_HOSTAGE offsetof(xram_layout_t, hostage)
+#define XRAM_HOSTAGE_PALETTE offsetof(xram_layout_t, palettes.hostage)
+
+#define XRAM_BAD_GUY offsetof(xram_layout_t, bad_guy)
+#define XRAM_BAD_GUY_PALETTE offsetof(xram_layout_t, palettes.bad_guy)
+
+#define XRAM_GAME_OVER1 offsetof(xram_layout_t, game_over1)
+#define XRAM_GAME_OVER2 offsetof(xram_layout_t, game_over2)
+#define XRAM_GAME_OVER1_PALETTE offsetof(xram_layout_t, palettes.game_over)
+
+#define XRAM_DIGITS offsetof(xram_layout_t, digits)
+#define XRAM_DIGITS_PALETTE offsetof(xram_layout_t, palettes.digits)
+
+#define XRAM_HUD_SPRITE offsetof(xram_layout_t, hud_sprite)
 #define XRAM_ELTS_SPRITE offsetof(xram_layout_t, elts_sprite)
 
 #define XRAM_GAMEPAD offsetof(xram_layout_t, gamepad)
