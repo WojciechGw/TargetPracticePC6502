@@ -1,15 +1,9 @@
-/*
- * Copyright (c) 2023 Rumbledethumps
- *
- * SPDX-License-Identifier: BSD-3-Clause
- * SPDX-License-Identifier: Unlicense
- */
-
 #include "xram.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <rp6502.h>
+#include "sound.h"
 
 static uint8_t vsync;
 
@@ -201,6 +195,9 @@ void shoot() {
     if (game.nb_shots == 0) {
         return;
     }
+
+    sound_start(0, &hit);
+
     game.nb_shots--;
     if (game.nb_shots == 10) {
         game.easter_state = 0xFF;
@@ -261,7 +258,6 @@ void shoot() {
     target_sprite.options = MODE5_1BPP;
 
     elts_sprite[TARGET].y_pos_px = 250;
-//    xram0_write(XRAM_TARGET_SPRITE, &target_boom_sprite, sizeof(target_boom_sprite));
 }
 
 static keyboard_t k;
@@ -304,6 +300,12 @@ void init_npc() {
 
 void game_over() {
     game.over = 1;
+
+    if (game.nb_targets != 20) {
+        hud_sprite[TARGET_LAUNCHED_H].xram_sprite_ptr = XRAM_DIGITS + 16;
+        hud_sprite[TARGET_LAUNCHED_L].xram_sprite_ptr = XRAM_DIGITS;
+    }
+
     hud_sprite[GAME_OVER1].y_pos_px = 88;
     hud_sprite[GAME_OVER2].y_pos_px = 88;
 }
@@ -355,25 +357,20 @@ int main(void)
 {
     xreg_ria_keyboard(XRAM_KEYBOARD);
     xreg_ria_gamepad(XRAM_GAMEPAD);
+    sound_init();
 
     // Use the 320x240 canvas
     xreg_vga_canvas(CANVAS_320X240);
 
     // Program the video mode
     xreg_vga_mode3(MODE3_4BPP, XRAM_BACKGROUND_CONFIG);
-//    xreg_vga_mode5(MODE5_CUSTOM, XRAM_TARGET_SPRITE, 1, 0, 0, 0);
-//    xreg_vga_mode5(MODE5_CUSTOM, XRAM_TARGET_BOOM_SPRITE, 1, 1, 0, 0);
-//    xreg_vga_mode5(MODE5_CUSTOM, XRAM_CROSSHAIR_SPRITE, 1, 1, 0, 0);
     xreg_vga_mode5(MODE5_CUSTOM, XRAM_ELTS_SPRITE, 5, 1, 0, 0);
     xreg_vga_mode5(MODE5_CUSTOM, XRAM_HUD_SPRITE, 27, 2, 0, 0);
-    // TODO: learn how to add a second bitmap over the first (if it's possible)
-//    xreg_vga_mode3(MODE3_4BPP, XRAM_GAME_OVER_CONFIG);
 
     init_game();
     vsync = ria_vsync();
 
     xram0_write(XRAM_BACKGROUND_CONFIG, &background_config, sizeof(background_config));
-//    xram0_write(XRAM_GAME_OVER_CONFIG, &game_over_config, sizeof(game_over_config));
 
     while (true) {
         while (ria_vsync() == vsync)
@@ -388,6 +385,8 @@ int main(void)
 
         // Update the sprites
         xram0_write(XRAM_ELTS_SPRITE, &elts_sprite, sizeof(elts_sprite));
+        xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
+
         if (game.target_status) {
             game.target_status--;
             if (!game.target_status) {
@@ -395,7 +394,5 @@ int main(void)
             }
         }
 
-//        xram0_write(XRAM_CROSSHAIR_SPRITE, &crosshair_sprite, sizeof(crosshair_sprite));
-        xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
     };
 }

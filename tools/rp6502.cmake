@@ -8,7 +8,7 @@ includes this file before ``project()``:
 .. code-block:: cmake
 
   include(${CMAKE_CURRENT_LIST_DIR}/tools/rp6502.cmake)
-  project(hello C ASM)
+  project(target_practice C ASM)
 
 The include loads the compiler for the variable that the configure preset
 sets: cc65 for ``CC65_TARGET_SYSTEM``, llvm-mos for ``LLVM_MOS_PLATFORM``,

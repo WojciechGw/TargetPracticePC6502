@@ -1,10 +1,3 @@
-/*
- * Copyright (c) 2023 Rumbledethumps
- *
- * SPDX-License-Identifier: BSD-3-Clause
- * SPDX-License-Identifier: Unlicense
- */
-
 #ifndef XRAM_H
 #define XRAM_H
 
@@ -188,6 +181,23 @@ typedef struct
 
 typedef struct
 {
+    uint16_t freq;
+    uint8_t duty;
+    uint8_t attack;
+    uint8_t decay;
+    uint8_t release_wave;
+    uint8_t pan_gate;
+    uint8_t reserved;
+} psg_channel_t;
+
+typedef struct
+{
+    psg_channel_t channel;
+} psg_t; /* layout */
+
+typedef struct
+{
+    psg_t psg;
     palettes_t palettes;
     uint8_t background[320UL * 240 / 2];
     uint8_t target[16*16/2];
@@ -200,14 +210,13 @@ typedef struct
     uint8_t bad_guy[128*32/2];
     uint8_t digits[88*8/8];
     mode3_config_t background_config;
-//    mode5_csprite_t target_sprite;
-//    mode5_csprite_t target_boom_sprite;
-//    mode5_csprite_t crosshair_sprite;
     mode5_csprite_t hud_sprite[27];
     mode5_csprite_t elts_sprite[5];
     keyboard_t keyboard;
     gamepad_t gamepad;
 } xram_layout_t;
+
+#define XRAM_PSG offsetof(xram_layout_t, psg)
 
 #define XRAM_BACKGROUND offsetof(xram_layout_t, background)
 #define XRAM_BACKGROUND_CONFIG offsetof(xram_layout_t, background_config)
@@ -215,15 +224,12 @@ typedef struct
 
 #define XRAM_CROSSHAIR offsetof(xram_layout_t, crosshair)
 #define XRAM_CROSSHAIR_PALETTE offsetof(xram_layout_t, palettes.crosshair)
-//#define XRAM_CROSSHAIR_SPRITE offsetof(xram_layout_t, crosshair_sprite)
 
 #define XRAM_TARGET offsetof(xram_layout_t, target)
 #define XRAM_TARGET_PALETTE offsetof(xram_layout_t, palettes.target)
-//#define XRAM_TARGET_SPRITE offsetof(xram_layout_t, target_sprite)
 
 #define XRAM_TARGET_BOOM offsetof(xram_layout_t, target_boom)
 #define XRAM_TARGET_BOOM_PALETTE offsetof(xram_layout_t, palettes.target_boom)
-//#define XRAM_TARGET_BOOM_SPRITE offsetof(xram_layout_t, target_boom_sprite)
 
 #define XRAM_SHELL offsetof(xram_layout_t, shell)
 #define XRAM_SHELL_PALETTE offsetof(xram_layout_t, palettes.shell)
