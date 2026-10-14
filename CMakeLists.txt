@@ -13,6 +13,15 @@ add_custom_command(
 )
 
 add_custom_command(
+    OUTPUT splash.bin splash_pal.bin
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/img/png2bin.py
+        bitmap 4 ${CMAKE_CURRENT_SOURCE_DIR}/img/splash.png
+        splash.bin splash_pal.bin
+    DEPENDS img/png2bin.py img/splash.png
+    VERBATIM
+)
+
+add_custom_command(
     OUTPUT crosshair.bin crosshair_pal.bin
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/img/png2bin.py
         sprite 1 32x32 ${CMAKE_CURRENT_SOURCE_DIR}/img/crosshair.png
@@ -105,8 +114,11 @@ else()
     add_executable(target_practice)
     rp6502_map(target_practice src/xram.h "XRAM_.*")
     rp6502_asset(target_practice help src/help.txt)
+    rp6502_asset(target_practice background.bin ${CMAKE_CURRENT_BINARY_DIR}/background.bin)
+    rp6502_asset(target_practice splash.bin ${CMAKE_CURRENT_BINARY_DIR}/splash.bin)
     rp6502_asset(target_practice XRAM(XRAM_BACKGROUND_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/background_pal.bin)
-    rp6502_asset(target_practice XRAM(XRAM_BACKGROUND) ${CMAKE_CURRENT_BINARY_DIR}/background.bin)
+    rp6502_asset(target_practice XRAM(XRAM_SPLASH_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/splash_pal.bin)
+    
     rp6502_asset(target_practice XRAM(XRAM_CROSSHAIR_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/crosshair_pal.bin)
     rp6502_asset(target_practice XRAM(XRAM_CROSSHAIR) ${CMAKE_CURRENT_BINARY_DIR}/crosshair.bin)
     rp6502_asset(target_practice XRAM(XRAM_TARGET_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/target_pal.bin)
@@ -129,5 +141,6 @@ else()
     target_sources(target_practice PRIVATE
         src/main.c
         src/sound.c
+        src/splash.c
     )
 endif()

@@ -146,6 +146,7 @@ typedef struct
 typedef struct
 {
     uint16_t background[16];
+    uint16_t splash[16];
     uint16_t game_over[16];
     uint16_t target[16];
     uint16_t target_boom[2];
@@ -221,6 +222,7 @@ typedef struct
 #define XRAM_BACKGROUND offsetof(xram_layout_t, background)
 #define XRAM_BACKGROUND_CONFIG offsetof(xram_layout_t, background_config)
 #define XRAM_BACKGROUND_PALETTE offsetof(xram_layout_t, palettes.background)
+#define XRAM_SPLASH_PALETTE offsetof(xram_layout_t, palettes.splash)
 
 #define XRAM_CROSSHAIR offsetof(xram_layout_t, crosshair)
 #define XRAM_CROSSHAIR_PALETTE offsetof(xram_layout_t, palettes.crosshair)

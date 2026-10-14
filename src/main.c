@@ -18,6 +18,7 @@ typedef struct
     int8_t space_key_down;
     uint8_t hostage_step;
     uint8_t bad_guy_step;
+    uint8_t easter;
     uint8_t easter_state;
     int8_t over;
 } game_t;
@@ -39,8 +40,9 @@ game_t game;
 #define TARGET_LAUNCHED_L 26
 
 void game_over();
+void display_splash();
 
-static const mode3_config_t background_config = {
+mode3_config_t background_config = {
     false, false, 0, 0, 320, 240,
     XRAM_BACKGROUND, XRAM_BACKGROUND_PALETTE};
 
@@ -50,10 +52,10 @@ static const mode3_config_t game_over_config = {
 
 static mode5_csprite_t elts_sprite[5] = {
     {10, 150, XRAM_TARGET, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_4BPP},
-    {10, 150, XRAM_TARGET_BOOM, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_1BPP},
+    {10, 250, XRAM_TARGET_BOOM, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_1BPP},
     {320, 150, XRAM_HOSTAGE, XRAM_HOSTAGE_PALETTE, MODE5_SIZE(16, 32), MODE5_4BPP},
     {380, 150, XRAM_BAD_GUY, XRAM_BAD_GUY_PALETTE, MODE5_SIZE(32, 32), MODE5_4BPP},
-    {100, 100, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE, MODE5_SIZE(32, 32), MODE5_1BPP}
+    {100, 150, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE, MODE5_SIZE(32, 32), MODE5_1BPP}
 };
 
 static mode5_csprite_t crosshair_sprite = {
@@ -102,21 +104,38 @@ static mode5_csprite_t hud_sprite[27] = {
 };
 
 uint8_t pad[4];
+uint8_t tmp;
 
 unsigned char dirs, jump, fire;
 
 void reset_target();
 
 void init_game() {
-    game.space_key_down = 0;
+    elts_sprite[CROSSHAIR].y_pos_px = 150;
+    elts_sprite[HOSTAGE].xram_sprite_ptr = XRAM_HOSTAGE;
+    elts_sprite[BAD_GUY].xram_sprite_ptr = XRAM_BAD_GUY;
+
+    for (tmp=0; tmp<27; tmp++) {
+        if (tmp == 20 || tmp == 21) continue;
+        hud_sprite[tmp].y_pos_px = 10;
+    }
+    hud_sprite[TARGET_HIT_H].xram_sprite_ptr = XRAM_DIGITS;
+    hud_sprite[TARGET_HIT_L].xram_sprite_ptr = XRAM_DIGITS;
+    hud_sprite[TARGET_LAUNCHED_H].xram_sprite_ptr = XRAM_DIGITS;
+    hud_sprite[TARGET_LAUNCHED_L].xram_sprite_ptr = XRAM_DIGITS;
+
     game.target_dx = 4;
     game.target_dy = -20;
-    game.nb_shots = 20;
-    game.hostage_step = 0;
-    game.easter_state = 0;
-    game.over = 0;
     game.nb_targets = 0;
     game.nb_targets_hit = 0;
+    game.nb_shots = 20;
+    game.target_status = 0;
+    game.space_key_down = 1;
+    game.hostage_step = 0;
+    game.bad_guy_step = 0;
+    game.easter = 1;
+    game.easter_state = 0;
+    game.over = 0;
     reset_target();
 }
 
@@ -190,8 +209,6 @@ void move_target() {
 }
 
 void shoot() {
-    uint8_t tmp;
-
     if (game.nb_shots == 0) {
         return;
     }
@@ -199,8 +216,9 @@ void shoot() {
     sound_start(0, &hit);
 
     game.nb_shots--;
-    if (game.nb_shots == 10) {
+    if (game.nb_shots == 10 && game.easter) {
         game.easter_state = 0xFF;
+        game.easter = 0;
     }
     hud_sprite[game.nb_shots].y_pos_px = 250;
 
@@ -260,7 +278,7 @@ void shoot() {
     elts_sprite[TARGET].y_pos_px = 250;
 }
 
-static keyboard_t k;
+keyboard_t k;
 
 void handle_input() {
         xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
@@ -316,8 +334,8 @@ void move_npcs() {
     // If the hostage made it out, stop
     elts_sprite[HOSTAGE].x_pos_px--;
     if (elts_sprite[HOSTAGE].x_pos_px == 5) {
-        elts_sprite[HOSTAGE].y_pos_px = 250;
-        elts_sprite[BAD_GUY].y_pos_px = 250;
+        elts_sprite[HOSTAGE].x_pos_px = 320;
+        elts_sprite[BAD_GUY].x_pos_px = 380;
         game.easter_state = 0;
         return;
     }
@@ -346,7 +364,7 @@ void move_npcs() {
         }
     } else {
         if (game.easter_state == 1) {
-            elts_sprite[BAD_GUY].y_pos_px = 250;
+            elts_sprite[BAD_GUY].x_pos_px = 380;
         } else {
             game.easter_state--;
         }
@@ -367,32 +385,65 @@ int main(void)
     xreg_vga_mode5(MODE5_CUSTOM, XRAM_ELTS_SPRITE, 5, 1, 0, 0);
     xreg_vga_mode5(MODE5_CUSTOM, XRAM_HUD_SPRITE, 27, 2, 0, 0);
 
-    init_game();
-    vsync = ria_vsync();
-
-    xram0_write(XRAM_BACKGROUND_CONFIG, &background_config, sizeof(background_config));
-
-    while (true) {
-        while (ria_vsync() == vsync)
-            ;
+    while (1) {
+        init_game();
         vsync = ria_vsync();
 
-        if (!game.over) {
-            move_target();
-            handle_input();
-            move_npcs();
+        display_splash();
+//    xram0_write(XRAM_BACKGROUND_CONFIG, &background_config, sizeof(background_config));
+
+        while (!game.over) {
+            while (ria_vsync() == vsync);
+            vsync = ria_vsync();
+
+            if (!game.over) {
+                move_target();
+                handle_input();
+                move_npcs();
+            }
+
+            // Update the sprites
+            xram0_write(XRAM_ELTS_SPRITE, &elts_sprite, sizeof(elts_sprite));
+            xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
+
+            if (game.target_status) {
+                game.target_status--;
+                if (!game.target_status) {
+                    reset_target();
+                }
+            }
+
+        };
+
+        // Game over
+        for (tmp=0; tmp<60; tmp++) {
+            while (ria_vsync() == vsync);
+            vsync = ria_vsync();
         }
-
-        // Update the sprites
-        xram0_write(XRAM_ELTS_SPRITE, &elts_sprite, sizeof(elts_sprite));
-        xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
-
-        if (game.target_status) {
-            game.target_status--;
-            if (!game.target_status) {
-                reset_target();
+        // Wait for key presse
+        while (1) {
+            xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
+            if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+                break;
+            }
+        }
+        // Wait for key release
+        while (1) {
+            xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
+            if (!KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+                break;
             }
         }
 
-    };
+        elts_sprite[CROSSHAIR].y_pos_px = 250;
+        elts_sprite[TARGET].y_pos_px = 250;
+        elts_sprite[TARGET_BOOM].y_pos_px = 250;
+        elts_sprite[HOSTAGE].x_pos_px = 320;
+        elts_sprite[BAD_GUY].x_pos_px = 380;
+        for (tmp=0; tmp<27; tmp++) {
+            hud_sprite[tmp].y_pos_px = 250;
+        }
+        xram0_write(XRAM_ELTS_SPRITE, &elts_sprite, sizeof(elts_sprite));
+        xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
+    }
 }
