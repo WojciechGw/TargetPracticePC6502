@@ -103,7 +103,7 @@ static mode5_csprite_t hud_sprite[27] = {
     { 282, 10, XRAM_DIGITS, XRAM_DIGITS_PALETTE, MODE5_SIZE(8, 8), MODE5_1BPP}
 };
 
-uint8_t pad[4];
+//uint8_t pad[4];
 uint8_t tmp;
 
 unsigned char dirs, jump, fire;
@@ -137,16 +137,6 @@ void init_game() {
     game.easter_state = 0;
     game.over = 0;
     reset_target();
-}
-
-void read_player1(void)
-{
-    unsigned char dpad = xram0_peek8(0xFF00);
-    unsigned char sticks = xram0_peek8(0xFF01);
-    unsigned char btn0 = xram0_peek8(0xFF02);
-    dirs = (dpad | sticks) & 0x0F; /* up 1, down 2, left 4, right 8 */
-    jump = btn0 & 0x09;            /* A or X */
-    fire = btn0 & 0x12;            /* B or Y */
 }
 
 void reset_target() {
@@ -279,37 +269,62 @@ void shoot() {
 }
 
 keyboard_t k;
+gamepad_player_t pad;
+
+void wait_for_fire() {
+    while (1) {
+        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
+        xram0_read(&pad, XRAM_GAMEPAD, sizeof(pad));
+        
+        if (pad.btn0 || KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+            break;
+        }
+    }
+
+    while (1) {
+        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
+        xram0_read(&pad, XRAM_GAMEPAD, sizeof(pad));
+        
+        if (!pad.btn0 && !KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+            break;
+        }
+    }
+}
 
 void handle_input() {
-        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_LEFT)) {
-            if (crosshair_sprite.x_pos_px) {
-                    elts_sprite[CROSSHAIR].x_pos_px-=4;
-                }
-        } else if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_RIGHT)) {
-            if (crosshair_sprite.x_pos_px < 288) {
-                    elts_sprite[CROSSHAIR].x_pos_px+=4;
-                }
-        }
+    xram0_read(&pad, XRAM_GAMEPAD, sizeof(pad));
+    xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
 
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_UP)) {
-            if (crosshair_sprite.y_pos_px) {
-                    elts_sprite[CROSSHAIR].y_pos_px-=4;
-                }
-        } else if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_DOWN)) {
-            if (crosshair_sprite.y_pos_px < 224) {
-                    elts_sprite[CROSSHAIR].y_pos_px+=4;
-                }
-        }
+    tmp = pad.dpad & 0xF;
 
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-            if (!game.space_key_down) {
-                shoot();
-                game.space_key_down = 1;
-            }
-        } else {
-            game.space_key_down = 0;
+    if ((tmp & 1) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_UP)) {
+        if (crosshair_sprite.y_pos_px) {
+            elts_sprite[CROSSHAIR].y_pos_px-=4;
         }
+    } else if ((tmp & 2) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_DOWN)) {
+        if (crosshair_sprite.y_pos_px < 224) {
+            elts_sprite[CROSSHAIR].y_pos_px+=4;
+        }
+    }
+
+    if ((tmp & 4) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_LEFT)) {
+        if (crosshair_sprite.x_pos_px) {
+            elts_sprite[CROSSHAIR].x_pos_px-=4;
+        }
+    } else if ((tmp & 8) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_RIGHT)) {
+        if (crosshair_sprite.x_pos_px < 288) {
+            elts_sprite[CROSSHAIR].x_pos_px+=4;
+        }
+    }
+
+    if (pad.btn0 || KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+        if (!game.space_key_down) {
+            shoot();
+            game.space_key_down = 1;
+        }
+    } else {
+        game.space_key_down = 0;
+    }
 }
 
 void init_npc() {
@@ -326,6 +341,7 @@ void game_over() {
 
     hud_sprite[GAME_OVER1].y_pos_px = 88;
     hud_sprite[GAME_OVER2].y_pos_px = 88;
+    xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
 }
 
 void move_npcs() {
@@ -420,20 +436,9 @@ int main(void)
             while (ria_vsync() == vsync);
             vsync = ria_vsync();
         }
-        // Wait for key presse
-        while (1) {
-            xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-            if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-                break;
-            }
-        }
-        // Wait for key release
-        while (1) {
-            xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-            if (!KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-                break;
-            }
-        }
+
+        // Wait for button
+        wait_for_fire();
 
         elts_sprite[CROSSHAIR].y_pos_px = 250;
         elts_sprite[TARGET].y_pos_px = 250;

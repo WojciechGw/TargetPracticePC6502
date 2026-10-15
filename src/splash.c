@@ -11,6 +11,7 @@
 
 extern mode3_config_t background_config;
 extern keyboard_t k;
+void wait_for_fire();
 
 void load_file(uint8_t bitmap) {
     int fd;
@@ -37,12 +38,7 @@ void load_file(uint8_t bitmap) {
 void display_splash() {
     load_file(SPLASH_BITMAP);
 
-    while (1) {
-        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-            break;
-        }
-    }
+    wait_for_fire();
 
     load_file(BACKGROUND_BITMAP);
 }
