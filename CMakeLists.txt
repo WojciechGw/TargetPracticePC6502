@@ -102,6 +102,33 @@ add_custom_command(
     VERBATIM
 )
 
+add_custom_command(
+    OUTPUT diff_easy.bin diff_easy_pal.bin
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/img/png2bin.py
+        sprite 2 48x12 ${CMAKE_CURRENT_SOURCE_DIR}/img/diff_easy.png
+        diff_easy.bin diff_easy_pal.bin
+    DEPENDS img/png2bin.py img/diff_easy.png
+    VERBATIM
+)
+
+add_custom_command(
+    OUTPUT diff_medium.bin diff_medium_pal.bin
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/img/png2bin.py
+        sprite 2 48x12 ${CMAKE_CURRENT_SOURCE_DIR}/img/diff_medium.png
+        diff_medium.bin diff_medium_pal.bin
+    DEPENDS img/png2bin.py img/diff_medium.png
+    VERBATIM
+)
+
+add_custom_command(
+    OUTPUT diff_hard.bin diff_hard_pal.bin
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/img/png2bin.py
+        sprite 2 48x12 ${CMAKE_CURRENT_SOURCE_DIR}/img/diff_hard.png
+        diff_hard.bin diff_hard_pal.bin
+    DEPENDS img/png2bin.py img/diff_hard.png
+    VERBATIM
+)
+
 if(RP6502_BASIC)
     project(MY-RP6502-PROJECT BASIC)
     add_executable(target_practice)
@@ -118,7 +145,11 @@ else()
     rp6502_asset(target_practice splash.bin ${CMAKE_CURRENT_BINARY_DIR}/splash.bin)
     rp6502_asset(target_practice XRAM(XRAM_BACKGROUND_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/background_pal.bin)
     rp6502_asset(target_practice XRAM(XRAM_SPLASH_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/splash_pal.bin)
-    
+    rp6502_asset(target_practice XRAM(XRAM_DIFF_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/diff_easy_pal.bin)
+    rp6502_asset(target_practice XRAM(XRAM_DIFF_EASY) ${CMAKE_CURRENT_BINARY_DIR}/diff_easy.bin)
+    rp6502_asset(target_practice XRAM(XRAM_DIFF_MEDIUM) ${CMAKE_CURRENT_BINARY_DIR}/diff_medium.bin)
+    rp6502_asset(target_practice XRAM(XRAM_DIFF_HARD) ${CMAKE_CURRENT_BINARY_DIR}/diff_hard.bin)
+
     rp6502_asset(target_practice XRAM(XRAM_CROSSHAIR_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/crosshair_pal.bin)
     rp6502_asset(target_practice XRAM(XRAM_CROSSHAIR) ${CMAKE_CURRENT_BINARY_DIR}/crosshair.bin)
     rp6502_asset(target_practice XRAM(XRAM_TARGET_PALETTE) ${CMAKE_CURRENT_BINARY_DIR}/target_pal.bin)
