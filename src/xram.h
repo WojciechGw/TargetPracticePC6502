@@ -155,6 +155,7 @@ typedef struct
     uint16_t hostage[16];
     uint16_t bad_guy[16];
     uint16_t digits[2];
+    uint16_t difficulty[4];
 } palettes_t;
 
 
@@ -210,9 +211,12 @@ typedef struct
     uint8_t hostage[48*32/2];
     uint8_t bad_guy[128*32/2];
     uint8_t digits[88*8/8];
+    uint8_t diff_easy[48*12/4];
+    uint8_t diff_medium[48*12/4];
+    uint8_t diff_hard[48*12/4];
     mode3_config_t background_config;
     mode5_csprite_t hud_sprite[27];
-    mode5_csprite_t elts_sprite[5];
+    mode5_csprite_t elts_sprite[6];
     keyboard_t keyboard;
     gamepad_t gamepad;
 } xram_layout_t;
@@ -223,6 +227,10 @@ typedef struct
 #define XRAM_BACKGROUND_CONFIG offsetof(xram_layout_t, background_config)
 #define XRAM_BACKGROUND_PALETTE offsetof(xram_layout_t, palettes.background)
 #define XRAM_SPLASH_PALETTE offsetof(xram_layout_t, palettes.splash)
+#define XRAM_DIFF_PALETTE offsetof(xram_layout_t, palettes.difficulty)
+#define XRAM_DIFF_EASY offsetof(xram_layout_t, diff_easy)
+#define XRAM_DIFF_MEDIUM offsetof(xram_layout_t, diff_medium)
+#define XRAM_DIFF_HARD offsetof(xram_layout_t, diff_hard)
 
 #define XRAM_CROSSHAIR offsetof(xram_layout_t, crosshair)
 #define XRAM_CROSSHAIR_PALETTE offsetof(xram_layout_t, palettes.crosshair)

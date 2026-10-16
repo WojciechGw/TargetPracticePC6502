@@ -5,10 +5,12 @@
 #include <rp6502.h>
 #include "sound.h"
 
-static uint8_t vsync;
+uint8_t vsync;
 
 typedef struct
 {
+    uint8_t difficulty;
+    uint8_t target_speed;
     int8_t target_dx;
     int8_t target_dy;
     int8_t nb_targets;
@@ -38,9 +40,12 @@ game_t game;
 #define TARGET_HIT_L 23
 #define TARGET_LAUNCHED_H 25
 #define TARGET_LAUNCHED_L 26
+#define HIDDEN 250
 
 void game_over();
-void display_splash();
+uint8_t display_splash(uint8_t);
+
+const uint8_t diff_target_speed[3] = { 2,3,4 };
 
 mode3_config_t background_config = {
     false, false, 0, 0, 320, 240,
@@ -50,27 +55,16 @@ static const mode3_config_t game_over_config = {
     false, false, 96, 80, 128, 75,
     XRAM_BACKGROUND, XRAM_BACKGROUND_PALETTE};
 
-static mode5_csprite_t elts_sprite[5] = {
-    {10, 150, XRAM_TARGET, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_4BPP},
+mode5_csprite_t elts_sprite[6] = {
+    {10, 250, XRAM_TARGET, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_4BPP},
     {10, 250, XRAM_TARGET_BOOM, XRAM_TARGET_PALETTE, MODE5_SIZE(16, 16), MODE5_1BPP},
     {320, 150, XRAM_HOSTAGE, XRAM_HOSTAGE_PALETTE, MODE5_SIZE(16, 32), MODE5_4BPP},
     {380, 150, XRAM_BAD_GUY, XRAM_BAD_GUY_PALETTE, MODE5_SIZE(32, 32), MODE5_4BPP},
-    {100, 150, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE, MODE5_SIZE(32, 32), MODE5_1BPP}
+    {100, 150, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE, MODE5_SIZE(32, 32), MODE5_1BPP},
+    {200, 100, XRAM_DIFF_EASY, XRAM_DIFF_PALETTE, MODE5_SIZE(48,12), MODE5_2BPP}
 };
 
-static mode5_csprite_t crosshair_sprite = {
-    100, 10, XRAM_CROSSHAIR, XRAM_CROSSHAIR_PALETTE,
-    MODE5_SIZE(32, 32), MODE5_2BPP};
-
-static mode5_csprite_t target_sprite = {
-    10, 150, XRAM_TARGET, XRAM_TARGET_PALETTE,
-    MODE5_SIZE(16, 16), MODE5_4BPP};
-
-static mode5_csprite_t target_boom_sprite = {
-    10, 150, XRAM_TARGET_BOOM, XRAM_TARGET_PALETTE,
-    MODE5_SIZE(16, 16), MODE5_1BPP};
-
-static mode5_csprite_t hud_sprite[27] = {
+mode5_csprite_t hud_sprite[27] = {
     // Shells
     { 8, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
     { 16, 10, XRAM_SHELL, XRAM_SHELL_PALETTE, MODE5_SIZE(8, 16), MODE5_4BPP },
@@ -103,10 +97,9 @@ static mode5_csprite_t hud_sprite[27] = {
     { 282, 10, XRAM_DIGITS, XRAM_DIGITS_PALETTE, MODE5_SIZE(8, 8), MODE5_1BPP}
 };
 
-uint8_t pad[4];
-uint8_t tmp;
-
-unsigned char dirs, jump, fire;
+uint8_t tmp, tmp2;
+keyboard_t k;
+gamepad_player_t pad;
 
 void reset_target();
 
@@ -136,17 +129,8 @@ void init_game() {
     game.easter = 1;
     game.easter_state = 0;
     game.over = 0;
+    game.target_speed = diff_target_speed[game.difficulty];
     reset_target();
-}
-
-void read_player1(void)
-{
-    unsigned char dpad = xram0_peek8(0xFF00);
-    unsigned char sticks = xram0_peek8(0xFF01);
-    unsigned char btn0 = xram0_peek8(0xFF02);
-    dirs = (dpad | sticks) & 0x0F; /* up 1, down 2, left 4, right 8 */
-    jump = btn0 & 0x09;            /* A or X */
-    fire = btn0 & 0x12;            /* B or Y */
 }
 
 void reset_target() {
@@ -166,16 +150,16 @@ void reset_target() {
         hud_sprite[TARGET_LAUNCHED_L].xram_sprite_ptr += 8;
     }
     elts_sprite[TARGET_BOOM].x_pos_px = 0;
-    elts_sprite[TARGET_BOOM].y_pos_px = 250;
+    elts_sprite[TARGET_BOOM].y_pos_px = HIDDEN;
 
     // Left side or right side?
     tmp = ria_attr_get(RIA_ATTR_LRAND);
     if ((tmp & 1) == 0) {
         elts_sprite[TARGET].x_pos_px = 0;
-        game.target_dx = 4;
+        game.target_dx = game.target_speed;
     } else {
         elts_sprite[TARGET].x_pos_px = 320;
-        game.target_dx = -4;
+        game.target_dx = -game.target_speed;
     }
 
     // What height?
@@ -197,18 +181,20 @@ void move_target() {
     }
     game.target_dy++;
 
-    if (game.target_dx == 4) {
+    if (game.target_dx > 0) {
         if (elts_sprite[TARGET].x_pos_px >= 316) {
             reset_target();
         }
     } else {
-        if (elts_sprite[TARGET].x_pos_px == 0) {
+        if (elts_sprite[TARGET].x_pos_px <= 0) {
             reset_target();
         }
     }
 }
 
 void shoot() {
+//    uint16_t x, y, offset;
+
     if (game.nb_shots == 0) {
         return;
     }
@@ -220,16 +206,36 @@ void shoot() {
         game.easter_state = 0xFF;
         game.easter = 0;
     }
-    hud_sprite[game.nb_shots].y_pos_px = 250;
+    hud_sprite[game.nb_shots].y_pos_px = HIDDEN;
 
     // if there is an easter egg
     if (game.easter_state != 0) {
-        if (elts_sprite[CROSSHAIR].x_pos_px < elts_sprite[HOSTAGE].x_pos_px+10) {
-            if (elts_sprite[CROSSHAIR].x_pos_px > elts_sprite[HOSTAGE].x_pos_px-24) {
-                if (elts_sprite[CROSSHAIR].y_pos_px < elts_sprite[HOSTAGE].y_pos_px+6) {
-                    if (elts_sprite[CROSSHAIR].y_pos_px > elts_sprite[HOSTAGE].y_pos_px-38) {
+        // Used to test the right window
+        /*
+        offset = XRAM_BACKGROUND;
+        for (y=0; y<240; y++) {
+            for (x=0; x<320; x+=2) {
+                if (x-15 < elts_sprite[TARGET].x_pos_px+6) {
+                    if (x-15 > elts_sprite[TARGET].x_pos_px-24) {
+                        if (y-15 < elts_sprite[TARGET].y_pos_px+6) {
+                            if (y-15 > elts_sprite[TARGET].y_pos_px-22) {
+                                xram0_poke8(offset, 0xFF);
+                            }
+                        }
+                    }
+                }
+                offset++;
+            }
+        }
+        xram0_write(XRAM_BACKGROUND_CONFIG, &background_config, sizeof(background_config));
+        while (1);
+        */
+        if (elts_sprite[CROSSHAIR].x_pos_px < elts_sprite[HOSTAGE].x_pos_px+2) {
+            if (elts_sprite[CROSSHAIR].x_pos_px > elts_sprite[HOSTAGE].x_pos_px-17) {
+                if (elts_sprite[CROSSHAIR].y_pos_px < elts_sprite[HOSTAGE].y_pos_px+20) {
+                    if (elts_sprite[CROSSHAIR].y_pos_px > elts_sprite[HOSTAGE].y_pos_px-15) {
                         elts_sprite[HOSTAGE].xram_sprite_ptr = XRAM_HOSTAGE + 512;
-                        elts_sprite[CROSSHAIR].y_pos_px = 250;
+                        elts_sprite[CROSSHAIR].y_pos_px = HIDDEN;
                         game_over();
                         return;
                     }
@@ -239,9 +245,9 @@ void shoot() {
 
         if (game.easter_state == 0xFF) {
             if (elts_sprite[CROSSHAIR].x_pos_px < elts_sprite[BAD_GUY].x_pos_px+10) {
-                if (elts_sprite[CROSSHAIR].x_pos_px > elts_sprite[BAD_GUY].x_pos_px-24) {
-                    if (elts_sprite[CROSSHAIR].y_pos_px < elts_sprite[BAD_GUY].y_pos_px+6) {
-                        if (elts_sprite[CROSSHAIR].y_pos_px > elts_sprite[BAD_GUY].y_pos_px-38) {
+                if (elts_sprite[CROSSHAIR].x_pos_px > elts_sprite[BAD_GUY].x_pos_px-12) {
+                    if (elts_sprite[CROSSHAIR].y_pos_px < elts_sprite[BAD_GUY].y_pos_px+20) {
+                        if (elts_sprite[CROSSHAIR].y_pos_px > elts_sprite[BAD_GUY].y_pos_px-15) {
                             elts_sprite[BAD_GUY].xram_sprite_ptr = XRAM_BAD_GUY + 1536;
                             game.easter_state = 40;
                             for (tmp=0; tmp<10; tmp++) {
@@ -273,47 +279,97 @@ void shoot() {
     game.target_status = 32;
     elts_sprite[TARGET_BOOM].x_pos_px = elts_sprite[TARGET].x_pos_px;
     elts_sprite[TARGET_BOOM].y_pos_px = elts_sprite[TARGET].y_pos_px;
-    target_sprite.options = MODE5_1BPP;
 
-    elts_sprite[TARGET].y_pos_px = 250;
+    elts_sprite[TARGET].y_pos_px = HIDDEN;
 }
 
-keyboard_t k;
+void wait_for_fire() {
+    while (1) {
+        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
+        xram0_read(&pad, XRAM_GAMEPAD, sizeof(pad));
+        
+        if (pad.btn0 || KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+            break;
+        }
+    }
+
+    while (1) {
+        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
+        xram0_read(&pad, XRAM_GAMEPAD, sizeof(pad));
+        
+        if (!pad.btn0 && !KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+            break;
+        }
+    }
+}
 
 void handle_input() {
-        xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_LEFT)) {
-            if (crosshair_sprite.x_pos_px) {
-                    elts_sprite[CROSSHAIR].x_pos_px-=4;
-                }
-        } else if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_RIGHT)) {
-            if (crosshair_sprite.x_pos_px < 288) {
-                    elts_sprite[CROSSHAIR].x_pos_px+=4;
-                }
-        }
+    xram0_read(&pad, XRAM_GAMEPAD, sizeof(pad));
+    xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
 
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_UP)) {
-            if (crosshair_sprite.y_pos_px) {
-                    elts_sprite[CROSSHAIR].y_pos_px-=4;
-                }
-        } else if (KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_DOWN)) {
-            if (crosshair_sprite.y_pos_px < 224) {
-                    elts_sprite[CROSSHAIR].y_pos_px+=4;
-                }
-        }
+    tmp = pad.dpad & 0xF;
 
-        if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-            if (!game.space_key_down) {
-                shoot();
-                game.space_key_down = 1;
+    // If the stick is used
+    if (pad.ly) {
+        if (pad.ly < 0) {
+            tmp2 = (-pad.ly) >> 4;
+            if (elts_sprite[CROSSHAIR].y_pos_px > tmp2) {
+                elts_sprite[CROSSHAIR].y_pos_px -= tmp2;
             }
         } else {
-            game.space_key_down = 0;
+            tmp2 = pad.ly >> 4;
+            if (elts_sprite[CROSSHAIR].y_pos_px + tmp2 < 224) {
+                elts_sprite[CROSSHAIR].y_pos_px += tmp2;
+            }
         }
-}
+    // Otherwise look at the gamepad or keyboard for vertical movement
+    } else {
+        if ((tmp & 1) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_UP)) {
+            if (elts_sprite[CROSSHAIR].y_pos_px) {
+                elts_sprite[CROSSHAIR].y_pos_px-=4;
+            }
+        } else if ((tmp & 2) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_DOWN)) {
+            if (elts_sprite[CROSSHAIR].y_pos_px < 224) {
+                elts_sprite[CROSSHAIR].y_pos_px+=4;
+            }
+        }
+    }
 
-void init_npc() {
+    // If the 
+    if (pad.lx) {
+        if (pad.lx < 0) {
+            tmp2 = (-pad.lx) >> 4;
+            if (elts_sprite[CROSSHAIR].x_pos_px > tmp2) {
+                elts_sprite[CROSSHAIR].x_pos_px -= tmp2;
+            }
+        } else {
+            tmp2 = pad.lx >> 4;
+            if (elts_sprite[CROSSHAIR].x_pos_px + tmp2 < 288) {
+                elts_sprite[CROSSHAIR].x_pos_px += tmp2;
+            }
+        }
+    // Otherwise look at the gamepad or keyboard for horizontal movement
+    } else {
+        if ((tmp & 4) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_LEFT)) {
+            if (elts_sprite[CROSSHAIR].x_pos_px) {
+                elts_sprite[CROSSHAIR].x_pos_px-=4;
+            }
+        } else if ((tmp & 8) || KEYBOARD_PRESSED(k.keys, HID_KEY_ARROW_RIGHT)) {
+            if (elts_sprite[CROSSHAIR].x_pos_px < 288) {
+                elts_sprite[CROSSHAIR].x_pos_px+=4;
+            }
+        }
+    }
 
+    // Detect fire
+    if (pad.btn0 || KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
+        if (!game.space_key_down) {
+            shoot();
+            game.space_key_down = 1;
+        }
+    } else {
+        game.space_key_down = 0;
+    }
 }
 
 void game_over() {
@@ -326,6 +382,7 @@ void game_over() {
 
     hud_sprite[GAME_OVER1].y_pos_px = 88;
     hud_sprite[GAME_OVER2].y_pos_px = 88;
+    xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
 }
 
 void move_npcs() {
@@ -376,21 +433,21 @@ int main(void)
     xreg_ria_keyboard(XRAM_KEYBOARD);
     xreg_ria_gamepad(XRAM_GAMEPAD);
     sound_init();
+    game.difficulty = 0;
 
     // Use the 320x240 canvas
     xreg_vga_canvas(CANVAS_320X240);
 
     // Program the video mode
     xreg_vga_mode3(MODE3_4BPP, XRAM_BACKGROUND_CONFIG);
-    xreg_vga_mode5(MODE5_CUSTOM, XRAM_ELTS_SPRITE, 5, 1, 0, 0);
+    xreg_vga_mode5(MODE5_CUSTOM, XRAM_ELTS_SPRITE, 6, 1, 0, 0);
     xreg_vga_mode5(MODE5_CUSTOM, XRAM_HUD_SPRITE, 27, 2, 0, 0);
 
     while (1) {
-        init_game();
         vsync = ria_vsync();
 
-        display_splash();
-//    xram0_write(XRAM_BACKGROUND_CONFIG, &background_config, sizeof(background_config));
+        game.difficulty = display_splash(game.difficulty);
+        init_game();
 
         while (!game.over) {
             while (ria_vsync() == vsync);
@@ -420,30 +477,9 @@ int main(void)
             while (ria_vsync() == vsync);
             vsync = ria_vsync();
         }
-        // Wait for key presse
-        while (1) {
-            xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-            if (KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-                break;
-            }
-        }
-        // Wait for key release
-        while (1) {
-            xram0_read(&k, XRAM_KEYBOARD, sizeof(k));
-            if (!KEYBOARD_PRESSED(k.keys, HID_KEY_SPACE)) {
-                break;
-            }
-        }
 
-        elts_sprite[CROSSHAIR].y_pos_px = 250;
-        elts_sprite[TARGET].y_pos_px = 250;
-        elts_sprite[TARGET_BOOM].y_pos_px = 250;
-        elts_sprite[HOSTAGE].x_pos_px = 320;
-        elts_sprite[BAD_GUY].x_pos_px = 380;
-        for (tmp=0; tmp<27; tmp++) {
-            hud_sprite[tmp].y_pos_px = 250;
-        }
-        xram0_write(XRAM_ELTS_SPRITE, &elts_sprite, sizeof(elts_sprite));
-        xram0_write(XRAM_HUD_SPRITE, &hud_sprite, sizeof(hud_sprite));
+        // Wait for button
+        wait_for_fire();
+
     }
 }
